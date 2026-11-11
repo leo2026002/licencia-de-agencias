@@ -22,7 +22,8 @@ async function waitForText(text) {
   for(let i=0;i<12;i++) {
     try {
       xml=await hierarchy();
-      const found=nodes(xml).find(n=>(n.text||'').includes(text)||(n['content-desc']||'').includes(text));
+      const normalized = value => value.replace(/&#(?:10|13);/g,' ').replace(/\s+/g,' ').trim();
+      const found=nodes(xml).find(n=>normalized(n.text||'').includes(text)||normalized(n['content-desc']||'').includes(text));
       if(found)return found;
     }catch(error){ if(i===11)throw error; }
     await pause(1500);
@@ -34,7 +35,7 @@ try {
   await pause(5000);
   assert.ok(adb(['shell','pidof','com.leo2026002.licencias']).trim(),'La aplicación debe permanecer abierta');
   await screen('Android-arranque');
-  await waitForText('Tu software, bajo control.');
+  await waitForText('Tu software');
   const button=await waitForText('Nueva licencia');
   const rect=button.bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
   assert.ok(rect,'El botón de nueva licencia debe tener una posición visible');

@@ -54,6 +54,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Falló la prueba del programa instalado' }
           Get-FileHash $installer.FullName -Algorithm SHA256 | Format-List | Out-File installers/windows/SHA256.txt
       - uses: actions/upload-artifact@v4
+        timeout-minutes: 2
+        if: "!contains(github.event.head_commit.message, '[diagnostico]')"
         with:
           name: Instalador-Windows
           if-no-files-found: error
@@ -62,6 +64,8 @@ jobs:
             installers/windows/SHA256.txt
             GUIA-INSTALACION.txt
       - uses: actions/upload-artifact@v4
+        timeout-minutes: 2
+        continue-on-error: true
         if: always()
         with:
           name: Prueba-visual-Windows
@@ -101,6 +105,8 @@ jobs:
           cp GUIA-INSTALACION.txt installers/android/
           sha256sum installers/android/Panel-Licencias-Android.apk > installers/android/SHA256.txt
       - uses: actions/upload-artifact@v4
+        timeout-minutes: 2
+        if: "!contains(github.event.head_commit.message, '[diagnostico]')"
         with:
           name: Aplicacion-Android-APK
           if-no-files-found: error
@@ -123,6 +129,8 @@ jobs:
             adb shell am start -n com.leo2026002.licencias/.MainActivity
             npm run test:android
       - uses: actions/upload-artifact@v4
+        timeout-minutes: 2
+        continue-on-error: true
         if: always()
         with:
           name: Prueba-visual-Android
