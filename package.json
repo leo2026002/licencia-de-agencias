@@ -1,0 +1,36 @@
+{
+  "name": "panel-administrador-licencias",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -b && vite build",
+    "start": "node scripts/start.mjs",
+    "test": "node --import tsx --test tests/domain.test.ts",
+    "test:db": "node tests/database.mjs",
+    "test:ui": "node --import tsx --test tests/interface.test.tsx"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.99.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.3.14",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.9",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "jsdom": "^31.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "~5.9.3",
+    "vite": "^6.4.0"
+  }
+}
