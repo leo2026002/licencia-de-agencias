@@ -131,6 +131,6 @@ npm run android:prepare
 
 El instalador Windows se compila con Electron Builder/NSIS en Windows. El APK se compila con Gradle y Java 21 sobre el proyecto generado por Capacitor 8. El directorio `android/` se genera desde la configuración y no contiene cambios manuales que deban recuperarse.
 
-La automatización instala el EXE resultante en Windows y prueba creación de aplicaciones, emisión, revocación y portapapeles. También instala el APK en un emulador Android y ejecuta el mismo flujo dentro de la WebView real. Las capturas se guardan como artefactos separados.
+La automatización instala el EXE resultante en Windows y prueba creación de aplicaciones, emisión, revocación y portapapeles. También instala el APK en un emulador Android y verifica la pantalla inicial y la apertura del formulario mediante UI Automator. Los flujos completos de emisión y revocación se comprueban en Windows y en las pruebas de interfaz compartida. Las capturas se guardan como artefactos separados.
 
 Las pruebas de sincronización comprueban dos clientes, cambios remotos, recuperación de red y descarte de respuestas tras cerrar sesión mediante un transporte simulado. Las pruebas SQL ejecutan `schema.sql` en PostgreSQL WASM, con Auth de prueba; no sustituyen una prueba de concurrencia con conexiones independientes. La sincronización contra un Supabase real queda pendiente de configurar tu proyecto y tus credenciales públicas.
