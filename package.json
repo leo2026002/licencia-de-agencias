@@ -1,6 +1,6 @@
 {
   "name": "panel-administrador-licencias",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -10,17 +10,29 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
     "start": "node scripts/start.mjs",
-    "test": "node --import tsx --test tests/domain.test.ts",
+    "test": "node --import tsx --test tests/domain.test.ts tests/synchronization.test.ts",
     "test:db": "node tests/database.mjs",
-    "test:ui": "node --import tsx --test tests/interface.test.tsx"
+    "test:ui": "node --import tsx --test tests/interface.test.tsx",
+    "assets": "node scripts/generate-icons.mjs",
+    "desktop:dist": "npm run assets && npm run build && electron-builder --win nsis --x64 --publish never",
+    "android:prepare": "npm run assets && npm run build && node scripts/prepare-android.mjs",
+    "test:desktop": "node tests/desktop-smoke.mjs",
+    "test:android": "node tests/android-smoke.mjs"
   },
   "dependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/clipboard": "^8.0.1",
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/filesystem": "^8.1.5",
+    "@capacitor/share": "^8.0.3",
     "@supabase/supabase-js": "^2.99.0",
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.6.0",
     "@electric-sql/pglite": "^0.3.14",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.9",
@@ -28,9 +40,16 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.7.0",
+    "electron": "^45.3.0",
+    "electron-builder": "^26.18.0",
     "jsdom": "^31.0.0",
+    "playwright-core": "^1.58.2",
     "tsx": "^4.20.0",
     "typescript": "~5.9.3",
     "vite": "^6.4.0"
-  }
+  },
+  "description": "Administrador de licencias para Windows y Android con sincronización Supabase",
+  "author": "Panel de Licencias",
+  "license": "UNLICENSED",
+  "main": "desktop/main.cjs"
 }

@@ -1,0 +1,28 @@
+PANEL DE LICENCIAS · WINDOWS Y ANDROID
+
+WINDOWS
+Abre el archivo Panel-Licencias-...-Windows-x64-Instalador.exe y sigue el
+asistente. Después abre «Panel de Licencias» desde el escritorio o el menú
+Inicio. El instalador incluye el entorno de ejecución; no necesitas Node.js.
+
+ANDROID
+Descarga el APK en tu teléfono y ábrelo para instalarlo. Android puede pedir
+que autorices la instalación desde la aplicación con la que descargaste el
+archivo. Abre «Panel de Licencias» en la lista de aplicaciones.
+
+SINCRONIZAR LOS DOS DISPOSITIVOS
+1. Entra a Configuración en cada versión.
+2. Introduce la misma URL y clave pública de tu proyecto de Supabase.
+3. Inicia sesión con tu cuenta administradora.
+4. Los cambios se comparten automáticamente mientras haya conexión.
+
+La demostración es local y no se sincroniza. Para datos reales, el proyecto
+de Supabase debe tener instalado schema.sql y tu usuario debe estar
+autorizado como administrador. Para proyectos ya instalados, aplica también
+supabase/migrations/0002_sincronizacion.sql.
+
+La sincronización usa Realtime y tiene una consulta de respaldo cada 30
+segundos. No se permiten cambios reales sin conexión a Supabase.
+
+Los instaladores no llevan un certificado comercial de Windows ni una
+publicación en Google Play. Descárgalos únicamente de este repositorio.

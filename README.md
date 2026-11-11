@@ -1,19 +1,32 @@
-# Panel Administrador de Licencias de Software
+# Panel de Licencias · Windows y Android
 
-Panel en español para vender y administrar licencias de varios programas. Incluye un dashboard oscuro, aplicaciones dinámicas, generación e importación de claves, catálogo con búsqueda y exportación CSV, renovación, revocación y control de equipos.
+Aplicaciones instalables en español para administrar y vender licencias de tus programas. La versión de PC y la de celular comparten el mismo catálogo mediante Supabase.
 
-**Estado:** código funcional con demostración local. Para emitir licencias reales hay que instalar el esquema y conectar un proyecto propio de Supabase. No incluye cobros automáticos, facturación ni un instalador ejecutable nativo.
+## Descargar e instalar
 
-## Abrir el programa sin programar
+Descarga los archivos de la última ejecución exitosa de **Actions → Compilar aplicaciones instalables**, en este repositorio:
 
-1. Descarga y descomprime el paquete **panel-licencias-listo.zip**. Conserva todas sus carpetas.
-2. Instala **Node.js LTS 22 o superior**, si todavía no lo tienes: https://nodejs.org.
-3. En Windows, abre **INICIAR-WINDOWS.bat** con doble clic. En macOS o Linux, ejecuta **INICIAR-MAC-LINUX.sh**. El panel abre el navegador en `http://127.0.0.1:4173`.
-4. Mantén abierta la ventana que inicia el programa. Para cerrarlo, pulsa Ctrl+C en esa ventana.
+- **Instalador-Windows**: contiene un instalador `.exe` para Windows 10/11 de 64 bits. Descomprime el ZIP, abre el instalador y sigue el asistente. El programa queda en el escritorio y en el menú Inicio.
+- **Aplicacion-Android-APK**: contiene `Panel-Licencias-Android.apk`. Descomprime el ZIP en el teléfono, abre el APK y permite su instalación si Android lo solicita. Compatible con Android 7 o posterior.
 
-El paquete listo incluye `dist/` compilado; no necesitas instalar dependencias ni editar código para probarlo. El ZIP de código que genera GitHub no incluye `dist/`: usa el paquete listo o descarga **panel-compilado** desde una ejecución exitosa de Actions → Verificar panel.
+**No tienes que instalar Node.js, abrir una terminal, descargar dependencias ni copiar código.** El motor de ejecución y todos los recursos de la interfaz están incluidos. `Code → Download ZIP` descarga las fuentes de desarrollo; los instaladores se encuentran en los artefactos de Actions.
 
-La primera apertura usa datos ficticios guardados en este navegador. Las claves de demostración **no sirven** en tus programas. El modo real tiene un catálogo separado en Supabase. La configuración y la sesión se conservan en el navegador del administrador; utiliza un equipo de confianza.
+Esta entrega se distribuye directamente: Windows no tiene certificado comercial de firma, y el APK utiliza la firma de desarrollo de Android. No es una publicación en Microsoft Store o Google Play. Para actualizaciones Android con la misma firma y publicación en tienda hará falta configurar una clave privada de firma propia; esta entrega no guarda claves privadas en el repositorio público.
+
+## Sincronización entre PC y celular
+
+1. Abre Configuración en Windows y en Android.
+2. Introduce **la misma URL y clave pública de Supabase** en ambos.
+3. Inicia sesión con tu cuenta administradora.
+4. Las aplicaciones, licencias y equipos se actualizan en ambos dispositivos.
+
+La sincronización escucha cambios con Supabase Realtime. También actualiza al regresar a la app, al recuperar la conexión y cada 30 segundos como respaldo. El indicador superior muestra **Sincronizado**, **Sincronizando** o **Sin conexión**. Las operaciones reales requieren internet; no se encolan ventas offline.
+
+La primera apertura permite explorar una **demostración local**. Esos datos ficticios no se sincronizan y sus claves no sirven en tus programas. Para usar datos reales, primero hay que preparar el proyecto de Supabase. Las cuentas, tablas y datos se mantienen en tu proyecto; el instalador no contiene credenciales privadas.
+
+Si ya instalaste el esquema anterior, aplica `supabase/migrations/0002_sincronizacion.sql` en SQL Editor para habilitar Realtime. Si aún no lo aplicaste, la consulta de respaldo sigue actualizando cada 30 segundos. En instalaciones nuevas, `schema.sql` ya incluye esta configuración.
+
+El catálogo permite generar claves, importar claves de tus generadores, copiar, buscar, filtrar y exportar CSV. En Android, la exportación abre la opción nativa para guardar o compartir el archivo. Puedes renovar, revocar y liberar equipos en cualquiera de las dos versiones.
 
 ## Conectar Supabase
 
@@ -87,37 +100,37 @@ Liberar un equipo borra la vinculación y deja un cupo libre. El equipo antiguo 
 
 La RPC no incluye una cuota propia por IP ni atestación de dispositivos. Para una operación comercial con tráfico elevado, configura límites de abuso en la capa de entrada de tu despliegue de Supabase y revisa sus cuotas y registros. El respaldo de datos reales se administra en tu proyecto de Supabase; el CSV no sustituye una copia de todas las tablas.
 
-## Estructura para desarrollo
+## Estructura y mantenimiento
 
 ```text
-src/
-  models/domain.ts       Modelos y reglas de fechas, estados y filtros
-  services/demo.ts       Demostración local separada
-  services/supabase.ts   Conexión, autenticación y operaciones RPC
-  views/App.tsx          Vistas y formularios del panel
-  styles.css            Diseño oscuro y responsive
-sdk/                     Integración TypeScript y Python para tus programas
-scripts/start.mjs        Servidor local del paquete compilado
-schema.sql               Instalación completa del backend
-tests/                   Reglas de negocio, interfaz y SQL
-.github/workflows/       Verificación automática y artefacto compilado
+src/models/               Modelos y reglas de licencias
+src/services/             Supabase, sincronización y funciones nativas
+src/views/                Interfaz compartida para Windows y Android
+desktop/main.cjs          Aplicación Windows con Electron
+capacitor.config.ts       Configuración de la aplicación Android
+scripts/                  Compilación y preparación de iconos/proyectos
+supabase/migrations/       Actualización de Realtime para proyectos existentes
+sdk/                      Clientes TypeScript y Python para tus programas
+schema.sql                Instalación del backend en Supabase
+tests/                    Pruebas de reglas, SQL, sincronización e instaladores
+.github/workflows/        Compilación y verificación automática de EXE y APK
 ```
 
-Código puro: React + TypeScript + Vite. Se eligió una aplicación web local para usar el mismo panel en Windows, macOS y Linux. No utiliza constructores visuales.
+El código de escritorio se ejecuta en una ventana propia, sin servidor local ni navegador externo. El renderizador no tiene acceso a Node.js y usa aislamiento de contexto y sandbox. En Android se utiliza una actividad nativa Capacitor con la interfaz incluida dentro del APK. La sesión y configuración se conservan por dispositivo. La base de datos central y las restricciones de licencia permanecen en Supabase.
 
-Comandos para el desarrollador o agente que mantenga el proyecto:
+Los siguientes comandos son para el agente o desarrollador que mantenga el proyecto; no son necesarios para instalarlo:
 
 ```sh
 npm ci
 npm test
 npm run test:db
 npm run test:ui
-npm run build
-npm start
+npm run desktop:dist
+npm run android:prepare
 ```
 
-`npm run dev` inicia el entorno de desarrollo. `npm start` sirve la compilación de producción. `OPEN_BROWSER=0` evita abrir un navegador y `PORT` cambia el puerto. Si cambias el puerto, el navegador tendrá otro almacenamiento local y deberás introducir de nuevo la conexión.
+El instalador Windows se compila con Electron Builder/NSIS en Windows. El APK se compila con Gradle y Java 21 sobre el proyecto generado por Capacitor 8. El directorio `android/` se genera desde la configuración y no contiene cambios manuales que deban recuperarse.
 
-Las pruebas SQL usan PostgreSQL WASM (PGlite), con un esquema de Auth de prueba. Ejecutan el archivo SQL real y verifican permisos, validación, vencimiento, revocación y cupos. PGlite serializa consultas: no reemplaza una prueba de concurrencia con conexiones independientes contra un proyecto real. Las pruebas de interfaz usan un DOM simulado; no equivalen a una revisión visual en navegador.
+La automatización instala el EXE resultante en Windows y prueba creación de aplicaciones, emisión, revocación y portapapeles. También instala el APK en un emulador Android y ejecuta el mismo flujo dentro de la WebView real. Las capturas se guardan como artefactos separados.
 
-Los datos reales de Supabase no se han probado sin un proyecto configurado. Las aplicaciones consumidoras y sus identificadores de hardware deben validarse al integrarlas.
+Las pruebas de sincronización comprueban dos clientes, cambios remotos, recuperación de red y descarte de respuestas tras cerrar sesión mediante un transporte simulado. Las pruebas SQL ejecutan `schema.sql` en PostgreSQL WASM, con Auth de prueba; no sustituyen una prueba de concurrencia con conexiones independientes. La sincronización contra un Supabase real queda pendiente de configurar tu proyecto y tus credenciales públicas.

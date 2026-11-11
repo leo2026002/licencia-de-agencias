@@ -62,12 +62,20 @@ import {
   api,
   checkConnection,
   connect,
-  fetchData,
   friendlyError,
   readConnection,
   saveConnection,
   type Connection,
 } from "../services/supabase";
+import {
+  synchronizeCatalog,
+  type SyncStatus,
+} from "../services/synchronization";
+import {
+  copyText,
+  observeNativeLifecycle,
+  saveCsv,
+} from "../services/platform";
 
 type Page = "dashboard" | "licenses" | "apps" | "devices" | "settings";
 const EMPTY: Data = { applications: [], licenses: [], activations: [] };
@@ -244,6 +252,10 @@ export default function App() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [pagination, setPagination] = useState(1);
   const [navOpen, setNavOpen] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("connecting");
+  const synchronizer = useRef<ReturnType<typeof synchronizeCatalog> | null>(
+    null,
+  );
   const [, updateClock] = useState(0);
   useEffect(() => {
     const timer = setInterval(() => updateClock((t) => t + 1), 60_000);
@@ -277,29 +289,61 @@ export default function App() {
   }, [client]);
   useEffect(() => {
     if (!client || !session?.user.id) return;
-    let current = true;
+    let received = false;
     setLoading(true);
     setError("");
-    fetchData(client)
-      .then((d) => {
-        if (current) {
-          setData(d);
-          setLoaded(true);
+    const sync = synchronizeCatalog(
+      client,
+      (d) => {
+        received = true;
+        setData(d);
+        setLoaded(true);
+        setLoading(false);
+      },
+      status => {
+        setSyncStatus(status);
+        if (status === 'offline') {
+          setLoading(false);
+          setError('Sin conexión. Los cambios reales requieren acceso a Supabase. Se reintentará al recuperar la red.');
         }
-      })
-      .catch((e) => {
-        if (current) {
-          setError(friendlyError(e));
+      },
+      (e) => {
+        setError(friendlyError(e));
+        setLoading(false);
+        if (!received || /autorizado|denegado/i.test(friendlyError(e))) {
+          setData(EMPTY);
           setLoaded(false);
         }
-      })
-      .finally(() => {
-        if (current) setLoading(false);
-      });
+      },
+    );
+    synchronizer.current = sync;
     return () => {
-      current = false;
+      sync.stop();
+      if (synchronizer.current === sync) synchronizer.current = null;
     };
   }, [client, session?.user.id]);
+  useEffect(() => {
+    let stopped = false;
+    let cleanup: (() => void) | undefined;
+    observeNativeLifecycle(() => {
+      if (modal || selected) {
+        setModal(null);
+        setSelected(null);
+      } else if (navOpen) setNavOpen(false);
+      else setPage("dashboard");
+    })
+      .then((stop) => {
+        if (stopped) stop();
+        else cleanup = stop;
+      })
+      .catch(() => {
+        // La app web funciona sin integración nativa.
+      });
+    return () => {
+      stopped = true;
+      cleanup?.();
+    };
+  }, [modal, selected, navOpen]);
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(""), 4200);
@@ -341,8 +385,7 @@ export default function App() {
     setLoading(true);
     setError("");
     try {
-      setData(await fetchData(client));
-      setLoaded(true);
+      await synchronizer.current?.refresh();
     } catch (e) {
       setError(friendlyError(e));
     } finally {
@@ -362,7 +405,7 @@ export default function App() {
       setToast(message);
       if (client) {
         try {
-          setData(await fetchData(client));
+          await synchronizer.current?.refresh();
         } catch (e) {
           setError(
             `La operación se guardó. No se pudo actualizar la vista: ${friendlyError(e)}`,
@@ -377,7 +420,7 @@ export default function App() {
   }
   async function copy(key: string) {
     try {
-      await navigator.clipboard.writeText(key);
+      await copyText(key);
       setToast("Clave copiada al portapapeles");
     } catch {
       setError(
@@ -427,9 +470,9 @@ export default function App() {
     setPage("dashboard");
     setSession(null);
   }
-  function exportCsv() {
+  async function exportCsv() {
     const safe = (s: string) =>
-      `"${(/^[=+@\-\t\r]/.test(s) ? "'" + s : s).replace(/"/g, '""')}"`;
+      `"${(/^[\s]*[=+@-]|^[\t\r\n]/.test(s) ? "'" + s : s).replace(/"/g, '""')}"`;
     const rows = [
       [
         "Aplicación",
@@ -450,18 +493,15 @@ export default function App() {
         String(l.max_equipos),
       ]),
     ];
-    const url = URL.createObjectURL(
-      new Blob(
-        ["\uFEFF" + rows.map((r) => r.map(safe).join(",")).join("\r\n")],
-        { type: "text/csv;charset=utf-8" },
-      ),
-    );
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${demo ? "demo-" : ""}licencias.csv`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    setToast("Catálogo exportado");
+    try {
+      await saveCsv(
+        "\uFEFF" + rows.map((r) => r.map(safe).join(",")).join("\r\n"),
+        `${demo ? "demo-" : ""}licencias.csv`,
+      );
+      setToast("Catálogo exportado");
+    } catch (e) {
+      setError(friendlyError(e));
+    }
   }
   function licenseTable(items: License[], compact = false) {
     return (
@@ -668,13 +708,19 @@ export default function App() {
           </div>
           <div className="topbar-right">
             <span
-              className={`connection-dot ${demo ? "demo" : loaded ? "" : "offline"}`}
+              className={`connection-dot ${demo ? "demo" : syncStatus === "synced" && loaded ? "" : "offline"}`}
             />
             <span>
               {demo
                 ? "Modo demostración"
                 : loaded
-                  ? "Supabase conectado"
+                  ? {
+                      connecting: "Conectando…",
+                      synced: "Sincronizado",
+                      updating: "Sincronizando…",
+                      offline: "Sin conexión",
+                      error: "Reintentar conexión",
+                    }[syncStatus]
                   : "Conectar cuenta"}
             </span>
             <button
@@ -693,7 +739,7 @@ export default function App() {
               <span>
                 <Sparkles size={15} />
                 <strong>Explora tu panel.</strong> Estás usando datos de
-                demostración guardados en este navegador.
+                demostración guardados en este dispositivo. No se sincronizan.
               </span>
               <button onClick={() => navigate("settings")}>
                 Conectar Supabase <ArrowRight size={14} />
@@ -1414,7 +1460,10 @@ export default function App() {
               Panel Administrador de Licencias de Software
             </span>
             <span>
-              v1.0 · {demo ? "Demostración local" : "Base de datos propia"}
+              v1.1 ·{" "}
+              {demo
+                ? "Demostración local"
+                : "Windows + Android · Sincronización automática"}
             </span>
           </footer>
         </main>
@@ -1654,7 +1703,7 @@ export default function App() {
                 if (client) {
                   const result = await api.validate(client, code, key, hw);
                   try {
-                    setData(await fetchData(client));
+                    await synchronizer.current?.refresh();
                   } catch (e) {
                     setError(
                       `Validación recibida. No se pudo actualizar la vista: ${friendlyError(e)}`,

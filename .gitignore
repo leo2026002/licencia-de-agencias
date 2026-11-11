@@ -11,3 +11,9 @@ playwright-report/
 *.tsbuildinfo
 __pycache__/
 *.pyc
+android/
+installers/
+desktop/icon.png
+desktop/icon.ico
+desktop/icon-*.png
+native-test-results/

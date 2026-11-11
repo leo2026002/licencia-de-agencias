@@ -39,7 +39,8 @@ try {
     create schema auth; create table auth.users(id uuid primary key, email text);
     create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
     grant usage on schema public, auth to anon, authenticated;
-    grant execute on function auth.uid() to anon, authenticated;`);
+    grant execute on function auth.uid() to anon, authenticated;
+    create publication supabase_realtime;`);
   await db.query("insert into auth.users values ($1, $2), ($3,$4)", [
     admin,
     "admin@example.com",
@@ -49,6 +50,9 @@ try {
   await db.exec(
     await readFile(new URL("../schema.sql", import.meta.url), "utf8"),
   );
+  eq((await db.query("select * from pg_publication_tables where pubname='supabase_realtime'")).rows.length, 3);
+  await db.exec(await readFile(new URL('../supabase/migrations/0002_sincronizacion.sql', import.meta.url), 'utf8'));
+  eq((await db.query("select * from pg_publication_tables where pubname='supabase_realtime'")).rows.length, 3);
   await db.query("insert into public.administradores(user_id) values ($1)", [
     admin,
   ]);

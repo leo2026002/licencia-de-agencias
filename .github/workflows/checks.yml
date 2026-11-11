@@ -1,10 +1,17 @@
-name: Verificar panel
-on: [push, pull_request]
+name: Compilar aplicaciones instalables
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
   check:
+    name: Verificar reglas, sincronización y base de datos
     runs-on: ubuntu-latest
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -16,13 +23,105 @@ jobs:
       - run: npm run test:db
       - run: npm run test:ui
       - run: npm run build
+  windows:
+    name: Instalador Windows y prueba del programa instalado
+    if: github.event_name != 'pull_request'
+    needs: check
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run desktop:dist
+      - name: Instalar y probar el EXE generado
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem installers/windows/*Instalador.exe | Select-Object -First 1
+          if (-not $installer) { throw 'No se generó el instalador' }
+          $installDir = Join-Path $env:RUNNER_TEMP 'Licencias-Instalado'
+          $process = Start-Process -FilePath $installer.FullName -ArgumentList '/S',"/D=$installDir" -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "El instalador terminó con código $($process.ExitCode)" }
+          Get-Process PanelLicencias -ErrorAction SilentlyContinue | Stop-Process -Force
+          $env:DESKTOP_EXECUTABLE = Join-Path $installDir 'PanelLicencias.exe'
+          if (-not (Test-Path $env:DESKTOP_EXECUTABLE)) { throw 'El instalador no creó el ejecutable' }
+          npm run test:desktop
+          if ($LASTEXITCODE -ne 0) { throw 'Falló la prueba del programa instalado' }
+          Get-FileHash $installer.FullName -Algorithm SHA256 | Format-List | Out-File installers/windows/SHA256.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: panel-compilado
+          name: Instalador-Windows
+          if-no-files-found: error
           path: |
-            dist/
-            scripts/start.mjs
-            INICIAR-WINDOWS.bat
-            INICIAR-MAC-LINUX.sh
-            schema.sql
-            README.md
+            installers/windows/*Instalador.exe
+            installers/windows/SHA256.txt
+            GUIA-INSTALACION.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Prueba-visual-Windows
+          path: native-test-results/
+  android:
+    name: APK Android y prueba en teléfono emulado
+    if: github.event_name != 'pull_request'
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+      - run: npm ci
+      - run: npm run android:prepare
+      - name: Compilar el APK de instalación directa
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+      - name: Habilitar aceleración del emulador
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Instalar y probar la app Android
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            adb shell am start -n com.leo2026002.licencias/.MainActivity
+            npm run test:android
+      - name: Preparar descarga
+        run: |
+          mkdir -p installers/android
+          cp android/app/build/outputs/apk/debug/app-debug.apk installers/android/Panel-Licencias-Android.apk
+          sha256sum installers/android/Panel-Licencias-Android.apk > installers/android/SHA256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Aplicacion-Android-APK
+          if-no-files-found: error
+          path: |
+            installers/android/
+            GUIA-INSTALACION.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Prueba-visual-Android
+          path: native-test-results/

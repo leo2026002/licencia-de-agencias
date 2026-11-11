@@ -1,0 +1,38 @@
+appId: com.leo2026002.licencias
+productName: Panel de Licencias
+executableName: PanelLicencias
+directories:
+  output: installers/windows
+files:
+  - dist/**/*
+  - desktop/main.cjs
+  - desktop/icon.png
+  - package.json
+asar: true
+npmRebuild: false
+extraResources:
+  - from: schema.sql
+    to: configuracion/schema.sql
+  - from: supabase/migrations
+    to: configuracion/migraciones
+  - from: GUIA-INSTALACION.txt
+    to: configuracion/GUIA-INSTALACION.txt
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: desktop/icon.ico
+  artifactName: Panel-Licencias-${version}-Windows-${arch}-Instalador.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Panel de Licencias
+  deleteAppDataOnUninstall: false
+  installerLanguages: [es_ES]
+  language: "3082"
+  runAfterFinish: true
+publish: null
