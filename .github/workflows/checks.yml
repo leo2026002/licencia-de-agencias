@@ -70,7 +70,7 @@ jobs:
     name: APK Android y prueba en teléfono emulado
     if: github.event_name != 'pull_request'
     needs: check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
@@ -85,6 +85,9 @@ jobs:
           distribution: temurin
           java-version: 21
       - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+          log-accepted-android-sdk-licenses: false
       - uses: gradle/actions/setup-gradle@v4
       - run: npm ci
       - run: npm run android:prepare
